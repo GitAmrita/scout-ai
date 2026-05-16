@@ -38,14 +38,14 @@ github.com/GitAmrita/claims_processor
 Additional AI and backend projects available on GitHub: github.com/GitAmrita Technical Skills
 ● Languages: Python, Java, Kotlin, C#, SQL
 ● Mobile Development: Android SDK, Jetpack Compose
-● Frameworks: Django, ASP.Net, Dagger, Retrofit
+● Frameworks: Django, ASP.Net, Dagger, Retrofit, FastAPI
 ● Databases: PostgreSQL, Microsoft SQL Server, MySQL, Snowflake Cloud: Google
 Cloud Platform (Cloud Run, Cloud Storage, Load Balancers), AWS, Azure
 ● ETL & Data Modeling: Designed pipelines and data normalization workflows for
 healthcare data ingestion
-● API Development: RESTful services, gRPC, Dependency Injection, Object-Oriented
+● API Development: RESTful services, gRPC, Dependency Injection, Object-Oriented, FHIR endpoints, REDOX, EHR - Epic, AthenaOne, eCW
 Design
-● Testing & DevOps: JUnit, Mockito, Espresso, GitHub Actions, CircleCI, Terraform,
+● Testing & DevOps: JUnit, Mockito, Espresso, GitHub Actions, CircleCI, Terraform, Vercel
 Docker
 ● Other Tools: NGINX, Redis, Elasticsearch, Firebase, Agile (Scrum), JIRA
 Education
