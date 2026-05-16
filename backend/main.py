@@ -7,9 +7,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sse_starlette.sse import EventSourceResponse
 
-from models import DiscoverRequest
+from models import DiscoverRequest, ApplyRequest
 from agents.discovery_agent import run_discovery_agent
 from agents.intelligence_agent import run_intelligence_agent
+from agents.application_agent import run_application_agent
 
 app = FastAPI()
 
@@ -33,6 +34,15 @@ async def discover(request: DiscoverRequest):
         if companies:
             async for event in run_intelligence_agent(companies):
                 yield {"data": json.dumps(event)}
+
+    return EventSourceResponse(event_stream())
+
+
+@app.post("/api/apply")
+async def apply(request: ApplyRequest):
+    async def event_stream():
+        async for event in run_application_agent(request.company, request.analysis):
+            yield {"data": json.dumps(event)}
 
     return EventSourceResponse(event_stream())
 

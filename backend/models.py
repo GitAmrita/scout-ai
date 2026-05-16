@@ -19,3 +19,8 @@ class CompanyProfile(BaseModel):
 
 class DiscoverRequest(BaseModel):
     prompt: str
+
+
+class ApplyRequest(BaseModel):
+    company: dict
+    analysis: dict

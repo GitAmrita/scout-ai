@@ -125,7 +125,6 @@ The Intelligence Agent uses Gemini for long-context reasoning, structured analys
 ### Responsibilities
 
 * Generate tailored resume bullets
-* Create personalized cover letters
 * Write “Why this company” summaries
 * Prepare application-ready materials
 

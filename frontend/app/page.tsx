@@ -29,8 +29,16 @@ interface Analysis {
   recommendation: string;
 }
 
+interface ApplicationMaterials {
+  why_this_company: string;
+  tailored_bullets: string[];
+  application_tips: string[];
+}
+
 interface CompanyWithAnalysis extends Company {
   analysis?: Analysis;
+  materials?: ApplicationMaterials;
+  materialsLoading?: boolean;
 }
 
 interface AgentEvent {
@@ -128,6 +136,49 @@ export default function Home() {
     } catch {
       setEvents((prev) => [...prev, { type: "error", message: "Could not connect to backend." }]);
       setIsRunning(false);
+    }
+  };
+
+  const prepareApplication = async (company: CompanyWithAnalysis) => {
+    setCompanies((prev) =>
+      prev.map((c) => c.name === company.name ? { ...c, materialsLoading: true } : c)
+    );
+    try {
+      const response = await fetch("http://localhost:8000/api/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ company, analysis: company.analysis }),
+      });
+      if (!response.body) return;
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const event = JSON.parse(line.slice(6));
+            if (event.type === "application_ready" && event.materials) {
+              setCompanies((prev) =>
+                prev.map((c) =>
+                  c.name === company.name
+                    ? { ...c, materials: event.materials, materialsLoading: false }
+                    : c
+                )
+              );
+            }
+          } catch {}
+        }
+      }
+    } catch {
+      setCompanies((prev) =>
+        prev.map((c) => c.name === company.name ? { ...c, materialsLoading: false } : c)
+      );
     }
   };
 
@@ -378,6 +429,76 @@ export default function Home() {
                               </a>
                             </div>
                           ))}
+                        </div>
+                      )}
+                      {/* Prepare Application */}
+                      {company.analysis && Math.round(company.analysis.fit_score / 10) >= 6 && (
+                        <div className="border-t border-zinc-800 pt-3">
+                          {!company.materials && !company.materialsLoading && (
+                            <button
+                              onClick={() => prepareApplication(company)}
+                              className="text-xs px-3 py-1.5 rounded-lg bg-emerald-500 text-zinc-950 font-medium hover:bg-emerald-400 transition-colors"
+                            >
+                              Prepare Application
+                            </button>
+                          )}
+                          {company.materialsLoading && (
+                            <div className="flex items-center gap-2 text-xs text-zinc-400">
+                              <div className="flex gap-1">
+                                {[0, 1, 2].map((i) => (
+                                  <motion.div
+                                    key={i}
+                                    className="w-1 h-1 rounded-full bg-emerald-500"
+                                    animate={{ opacity: [0.3, 1, 0.3] }}
+                                    transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
+                                  />
+                                ))}
+                              </div>
+                              Preparing application...
+                            </div>
+                          )}
+                          {company.materials && (
+                            <div className="flex flex-col gap-4">
+                              <div>
+                                <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-1">Why This Company</p>
+                                <p className="text-sm text-zinc-300 leading-relaxed">{company.materials.why_this_company}</p>
+                              </div>
+                              {company.materials.tailored_bullets.length > 0 && (
+                                <div>
+                                  <div className="flex items-center justify-between mb-1">
+                                    <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">Tailored Resume Bullets</p>
+                                    <button
+                                      onClick={() => navigator.clipboard.writeText(company.materials!.tailored_bullets.join("\n"))}
+                                      className="text-xs text-zinc-500 hover:text-emerald-400 transition-colors"
+                                    >
+                                      Copy all
+                                    </button>
+                                  </div>
+                                  <div className="flex flex-col gap-1.5">
+                                    {company.materials.tailored_bullets.map((bullet, j) => (
+                                      <div key={j} className="flex items-start gap-2 text-xs text-zinc-300">
+                                        <span className="flex-shrink-0 mt-0.5 text-emerald-500">•</span>
+                                        <span>{bullet}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              {company.materials.application_tips.length > 0 && (
+                                <div>
+                                  <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-1">Application Tips</p>
+                                  <div className="flex flex-col gap-1.5">
+                                    {company.materials.application_tips.map((tip, j) => (
+                                      <div key={j} className="flex items-start gap-2 text-xs text-zinc-400">
+                                        <span className="flex-shrink-0 mt-0.5">→</span>
+                                        <span>{tip}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       )}
                     </motion.div>
