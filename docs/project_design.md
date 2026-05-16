@@ -116,7 +116,7 @@ without changing the core agent workflow.
 
 This is the core reasoning layer of Scout.
 
-The Intelligence Agent uses Claude for long-context reasoning, structured analysis, and nuanced fit evaluation.
+The Intelligence Agent uses Gemini for long-context reasoning, structured analysis, and nuanced fit evaluation.
 
 ---
 
@@ -131,7 +131,7 @@ The Intelligence Agent uses Claude for long-context reasoning, structured analys
 
 Scout does not automatically submit applications. Instead, it prepares high-quality personalized application packages for the user.
 
-The Application Agent uses Claude to generate personalized, context-aware application materials.
+The Application Agent uses Gemini to generate personalized, context-aware application materials.
 
 ---
 
@@ -158,8 +158,8 @@ The Application Agent uses Claude to generate personalized, context-aware applic
 
 ## LLMs
 
-* Claude Sonnet
-* Optional: Qwen Cloud for lightweight tasks
+* Gemini 2.0 Flash (discovery and application generation)
+* Gemini 2.5 Pro (deep reasoning and fit analysis)
 
 ## Storage
 
@@ -172,7 +172,7 @@ No database required for MVP.
 
 ---
 
-# Why Claude?
+# Why Gemini?
 
 Scout is a reasoning-heavy system focused on:
 
@@ -181,12 +181,13 @@ Scout is a reasoning-heavy system focused on:
 * application personalization
 * long-context reasoning
 
-Claude is used because of its strengths in:
+Gemini is used because of its strengths in:
 
 * nuanced reasoning
 * high-quality writing
 * structured analysis
 * handling large context windows
+* native multimodal and tool-use capabilities
 
 This makes it especially effective for fit analysis and personalized application generation.
 

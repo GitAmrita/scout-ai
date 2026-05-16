@@ -1,71 +1,90 @@
 import json
+import os
 import re
 from pathlib import Path
 from typing import AsyncIterator
 
-from openai import OpenAI
+from google import genai
+from google.genai import types
 
 from tools.search import search_web
 from tools.scraper import scrape_url
 
-client = OpenAI()
+client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
 RESUME_PATH = Path(__file__).parent.parent.parent / "data" / "resume.md"
 COMPANIES_PATH = Path(__file__).parent.parent.parent / "data" / "companies.md"
 
 TOOLS = [
-    {
-        "type": "function",
-        "function": {
-            "name": "search_web",
-            "description": (
-                "Search the web for healthcare AI startups, job openings, funding news, and hiring signals. "
-                "Use targeted queries like 'healthcare AI startup hiring backend engineer 2025' or "
-                "'YC healthcare AI companies careers'."
+    types.Tool(
+        function_declarations=[
+            types.FunctionDeclaration(
+                name="search_web",
+                description=(
+                    "Search the web for healthcare AI startups, job openings, funding news, and hiring signals. "
+                    "Use targeted queries like 'healthcare AI startup hiring backend engineer 2025' or "
+                    "'YC healthcare AI companies careers'."
+                ),
+                parameters=types.Schema(
+                    type=types.Type.OBJECT,
+                    properties={
+                        "query": types.Schema(
+                            type=types.Type.STRING,
+                            description="Search query",
+                        )
+                    },
+                    required=["query"],
+                ),
             ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query": {"type": "string", "description": "Search query"}
-                },
-                "required": ["query"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "scrape_url",
-            "description": (
-                "Fetch and read the content of a URL. Use for company careers pages, "
-                "about pages, and individual job listings."
+            types.FunctionDeclaration(
+                name="scrape_url",
+                description=(
+                    "Fetch and read the content of a URL. Use for company careers pages, "
+                    "about pages, and individual job listings."
+                ),
+                parameters=types.Schema(
+                    type=types.Type.OBJECT,
+                    properties={
+                        "url": types.Schema(
+                            type=types.Type.STRING,
+                            description="Full URL to fetch",
+                        )
+                    },
+                    required=["url"],
+                ),
             ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "url": {"type": "string", "description": "Full URL to fetch"}
-                },
-                "required": ["url"],
-            },
-        },
-    },
+        ]
+    )
 ]
 
 SYSTEM_PROMPT = """You are the Discovery Agent for Scout, an autonomous AI career intelligence system.
 
-Your mission: Find healthcare AI startups that are actively hiring backend/software engineers matching the candidate's profile.
+Your mission: Find healthcare AI startups that are actively hiring backend/software engineers that match the candidate's technical strengths.
+
+Matching philosophy: Do NOT match on specific programming languages. Instead match on technical domains. The candidate is a strong fit if the role overlaps with any of these strengths:
+- Backend engineering (APIs, services, distributed systems) — language doesn't matter, Go/Rust/Java/Python are all fine; language overlap is a nice-to-have bonus, not a requirement
+- Data pipelines & ETL (ingestion, normalization, transformation at scale)
+- Healthcare data (claims, EHR, clinical data, interoperability)
+- Cloud infrastructure (AWS, GCP, or Azure)
+- Data modeling & databases (relational, analytical)
+- AI/ML-adjacent engineering (building infrastructure around models, not necessarily research)
+
+A role is a match if 2-3 of these domains overlap. Specific language requirements are irrelevant.
 
 Strategy:
-1. Search for healthcare AI startup lists — YC batches, recent funding rounds, industry directories
-2. Identify 5-8 strong candidate companies
-3. For each company, locate and scrape their careers page for open engineering roles
-4. Gather hiring signals: funding stage, team growth, recent news
+1. Start by scraping careers pages for this seed list of known healthcare AI companies:
+   - Viz.ai: https://www.viz.ai/careers
+   - PathAI: https://www.pathai.com/careers
+   - Artera: https://artera.ai/careers
+   - Abridge: https://www.abridge.com/careers
+   - Ambience Healthcare: https://www.ambiencehealthcare.com/careers
+   - Regard: https://www.regard.com/careers
+   - Cohere Health: https://coherehealth.com/careers
+2. Additionally search the web for 2-3 more healthcare AI startups actively hiring engineers
+3. For each company, note open engineering roles and hiring signals
+4. Include every company from the seed list — even if you cannot confirm a specific open role, include it as "likely hiring" based on their stage and growth
 
-Target companies that:
-- Build AI/ML products in healthcare (diagnostics, clinical workflows, health data, EHR, billing)
-- Have Python / backend / data engineering / platform roles open
-- Are Seed to Series B stage
-- Show active hiring signals
+Aim to return 5-6 companies total.
 
 When you have gathered enough information, output your findings as a JSON array in this exact format wrapped in ```json fences:
 
@@ -93,48 +112,50 @@ When you have gathered enough information, output your findings as a JSON array 
 async def run_discovery_agent(user_prompt: str) -> AsyncIterator[dict]:
     resume = RESUME_PATH.read_text()
 
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {
-            "role": "user",
-            "content": (
-                f"User goal: {user_prompt}\n\n"
-                f"Candidate resume:\n{resume}\n\n"
-                "Find healthcare AI companies actively hiring engineers that match this candidate."
-            ),
-        },
-    ]
+    chat = client.aio.chats.create(
+        model="gemini-2.0-flash",
+        config=types.GenerateContentConfig(
+            system_instruction=SYSTEM_PROMPT,
+            tools=TOOLS,
+        ),
+    )
 
     yield {"type": "agent_start", "message": "Discovery Agent is searching for opportunities..."}
 
-    for _ in range(15):  # cap iterations
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages,
-            tools=TOOLS,
-        )
+    initial_message = (
+        f"User goal: {user_prompt}\n\n"
+        f"Candidate resume:\n{resume}\n\n"
+        "Find healthcare AI companies actively hiring engineers that match this candidate."
+    )
 
-        choice = response.choices[0]
-        message = choice.message
-        messages.append(message)
+    response = await chat.send_message(initial_message)
 
-        if message.content:
-            yield {"type": "agent_thinking", "message": message.content[:300]}
+    for _ in range(15):
+        text_parts = []
+        function_calls = []
 
-        tool_calls = message.tool_calls or []
+        for part in response.candidates[0].content.parts:
+            if part.text:
+                text_parts.append(part.text)
+            if part.function_call:
+                function_calls.append(part.function_call)
 
-        if choice.finish_reason == "stop" or not tool_calls:
-            final_text = message.content or ""
-            companies = _parse_companies(final_text)
+        text = "".join(text_parts)
+        if text:
+            yield {"type": "agent_thinking", "message": text[:300]}
+
+        if not function_calls:
+            companies = _parse_companies(text)
             for company in companies:
                 yield {"type": "company_found", "company": company}
             _save_companies(companies)
             yield {"type": "done", "message": f"Found {len(companies)} companies.", "companies": companies}
             return
 
-        for tool_call in tool_calls:
-            name = tool_call.function.name
-            args = json.loads(tool_call.function.arguments)
+        tool_response_parts = []
+        for fc in function_calls:
+            name = fc.name
+            args = dict(fc.args)
             yield {"type": "tool_call", "tool": name, "input": args}
 
             try:
@@ -149,11 +170,16 @@ async def run_discovery_agent(user_prompt: str) -> AsyncIterator[dict]:
                 content = f"Error: {e}"
                 yield {"type": "tool_error", "tool": name, "message": str(e)}
 
-            messages.append({
-                "role": "tool",
-                "tool_call_id": tool_call.id,
-                "content": content[:8000],
-            })
+            tool_response_parts.append(
+                types.Part(
+                    function_response=types.FunctionResponse(
+                        name=name,
+                        response={"result": content[:8000]},
+                    )
+                )
+            )
+
+        response = await chat.send_message(tool_response_parts)
 
     yield {"type": "done", "message": "Discovery complete."}
 
