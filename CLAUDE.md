@@ -30,11 +30,11 @@ Then open `http://localhost:3000`.
 
 **Backend (`backend/.env`):**
 - `GEMINI_API_KEY` — Google Gemini API key
-- `ALLOWED_ORIGINS` — comma-separated CORS origins (e.g. `http://localhost:3000,https://your-app.zeabur.app`)
+- `ALLOWED_ORIGINS` — comma-separated CORS origins (e.g. `http://localhost:3000,https://scout-ai-mu.vercel.app`)
 
 **Frontend (`frontend/.env.local`):**
-- `NEXT_PUBLIC_API_URL` — backend base URL (e.g. `http://localhost:8000`)
+- `NEXT_PUBLIC_API_URL` — backend base URL (e.g. `http://localhost:8000` locally, `https://scout-ai-backend-bczu.onrender.com` in prod)
 
-## Deployment (Zeabur)
+## Deployment (Vercel + Render)
 
-Both services have `zbpack.json` for Zeabur auto-detection. Set env vars in the Zeabur dashboard — do not commit `.env` or `.env.local`.
+See `docs/DEPLOYMENT.md` for full deployment details. Do not commit `.env` or `.env.local`.
