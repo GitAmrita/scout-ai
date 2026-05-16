@@ -19,13 +19,29 @@ interface Company {
   jobs: Job[];
 }
 
+interface Analysis {
+  name: string;
+  fit_score: number;
+  fit_label: string;
+  tech_stack: string[];
+  fit_reasons: string[];
+  gaps: string[];
+  recommendation: string;
+}
+
+interface CompanyWithAnalysis extends Company {
+  analysis?: Analysis;
+}
+
 interface AgentEvent {
-  type: "agent_start" | "agent_thinking" | "tool_call" | "tool_error" | "company_found" | "done" | "error";
+  type: "agent_start" | "agent_thinking" | "tool_call" | "tool_error" | "company_found" | "done" | "analysis_start" | "company_analyzed" | "analysis_done" | "error";
   message?: string;
   tool?: string;
   input?: Record<string, string>;
   company?: Company;
   companies?: Company[];
+  analysis?: Analysis;
+  analyses?: Analysis[];
 }
 
 const TOOL_LABELS: Record<string, string> = {
@@ -33,11 +49,18 @@ const TOOL_LABELS: Record<string, string> = {
   scrape_url: "Reading page",
 };
 
+const FIT_LABEL_STYLES: Record<string, string> = {
+  "Strong Match": "bg-emerald-500 text-zinc-950",
+  "Good Match": "bg-blue-500 text-white",
+  "Partial Match": "bg-amber-500 text-zinc-950",
+  "Weak Match": "bg-zinc-600 text-white",
+};
+
 export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [events, setEvents] = useState<AgentEvent[]>([]);
-  const [companies, setCompanies] = useState<Company[]>([]);
+  const [companies, setCompanies] = useState<CompanyWithAnalysis[]>([]);
   const [hasRun, setHasRun] = useState(false);
   const feedRef = useRef<HTMLDivElement>(null);
 
@@ -78,7 +101,23 @@ export default function Home() {
             if (event.type === "company_found" && event.company) {
               setCompanies((prev) => [...prev, event.company!]);
             }
-            if (event.type === "done") setIsRunning(false);
+            if (event.type === "company_analyzed" && event.analysis) {
+              setCompanies((prev) =>
+                prev.map((c) =>
+                  c.name === event.analysis!.name
+                    ? { ...c, analysis: event.analysis }
+                    : c
+                )
+              );
+            }
+            if (event.type === "analysis_done") {
+              setCompanies((prev) =>
+                [...prev].sort(
+                  (a, b) => (b.analysis?.fit_score ?? 0) - (a.analysis?.fit_score ?? 0)
+                )
+              );
+              setIsRunning(false);
+            }
             // scroll feed to bottom
             setTimeout(() => {
               feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight, behavior: "smooth" });
@@ -155,7 +194,9 @@ export default function Home() {
                           ? "bg-zinc-800 text-zinc-300"
                           : event.type === "company_found"
                           ? "bg-emerald-950 border border-emerald-800 text-emerald-300"
-                          : event.type === "done"
+                          : event.type === "company_analyzed"
+                          ? "bg-blue-950 border border-blue-800 text-blue-300"
+                          : event.type === "done" || event.type === "analysis_done"
                           ? "bg-zinc-800 text-emerald-400 font-medium"
                           : event.type === "error" || event.type === "tool_error"
                           ? "bg-red-950 border border-red-800 text-red-400"
@@ -175,9 +216,19 @@ export default function Home() {
                       {event.type === "company_found" && (
                         <span>Found: <strong>{event.company?.name}</strong></span>
                       )}
+                      {event.type === "company_analyzed" && (
+                        <span>
+                          Analyzed: <strong>{event.analysis?.name}</strong>
+                          {event.analysis?.fit_score !== undefined && (
+                            <span className="ml-1 text-zinc-400">— {Math.round(event.analysis.fit_score / 10)}/10</span>
+                          )}
+                        </span>
+                      )}
                       {(event.type === "agent_start" ||
                         event.type === "agent_thinking" ||
+                        event.type === "analysis_start" ||
                         event.type === "done" ||
+                        event.type === "analysis_done" ||
                         event.type === "error" ||
                         event.type === "tool_error") &&
                         event.message}
@@ -213,13 +264,19 @@ export default function Home() {
                       animate={{ opacity: 1, y: 0 }}
                       className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 flex flex-col gap-3"
                     >
+                      {/* Header */}
                       <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <div className="flex items-center gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <h3 className="font-semibold text-zinc-100">{company.name}</h3>
                             {company.funding && (
                               <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400">
                                 {company.funding}
+                              </span>
+                            )}
+                            {company.analysis && (
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${FIT_LABEL_STYLES[company.analysis.fit_label] ?? "bg-zinc-700 text-white"}`}>
+                                {company.analysis.fit_label}
                               </span>
                             )}
                           </div>
@@ -234,20 +291,63 @@ export default function Home() {
                             </a>
                           )}
                         </div>
-                        {company.careers_url && (
-                          <a
-                            href={company.careers_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs px-3 py-1.5 rounded-lg border border-zinc-700 text-zinc-300 hover:border-emerald-500 hover:text-emerald-400 transition-colors whitespace-nowrap"
-                          >
-                            View careers
-                          </a>
-                        )}
+                        <div className="flex items-center gap-3 flex-shrink-0">
+                          {company.analysis && (
+                            <div className="flex flex-col items-center">
+                              <span className="text-2xl font-bold text-zinc-100 leading-none">{Math.round(company.analysis.fit_score / 10)}</span>
+                              <span className="text-xs text-zinc-500">/ 10</span>
+                            </div>
+                          )}
+                          {company.careers_url && (
+                            <a
+                              href={company.careers_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs px-3 py-1.5 rounded-lg border border-zinc-700 text-zinc-300 hover:border-emerald-500 hover:text-emerald-400 transition-colors whitespace-nowrap"
+                            >
+                              View careers
+                            </a>
+                          )}
+                        </div>
                       </div>
 
                       {company.description && (
                         <p className="text-sm text-zinc-400 leading-relaxed">{company.description}</p>
+                      )}
+
+                      {/* Tech stack */}
+                      {company.analysis?.tech_stack && company.analysis.tech_stack.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {company.analysis.tech_stack.map((tech, j) => (
+                            <span key={j} className="text-xs px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700">
+                              {tech}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Fit reasons */}
+                      {company.analysis?.fit_reasons && company.analysis.fit_reasons.length > 0 && (
+                        <div className="flex flex-col gap-1">
+                          {company.analysis.fit_reasons.map((reason, j) => (
+                            <div key={j} className="flex items-start gap-2 text-xs text-emerald-400">
+                              <span className="flex-shrink-0 mt-0.5">✓</span>
+                              <span>{reason}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Gaps */}
+                      {company.analysis?.gaps && company.analysis.gaps.length > 0 && (
+                        <div className="flex flex-col gap-1">
+                          {company.analysis.gaps.map((gap, j) => (
+                            <div key={j} className="flex items-start gap-2 text-xs text-amber-400">
+                              <span className="flex-shrink-0 mt-0.5">△</span>
+                              <span>{gap}</span>
+                            </div>
+                          ))}
+                        </div>
                       )}
 
                       {company.hiring_signals.length > 0 && (
@@ -268,16 +368,14 @@ export default function Home() {
                           {company.jobs.map((job, j) => (
                             <div key={j} className="flex items-center justify-between">
                               <span className="text-sm text-zinc-300">{job.title}</span>
-                              {job.url && (
-                                <a
-                                  href={job.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-xs text-zinc-500 hover:text-emerald-400 transition-colors"
-                                >
-                                  Apply
-                                </a>
-                              )}
+                              <a
+                                href={job.url || company.careers_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-zinc-500 hover:text-emerald-400 transition-colors"
+                              >
+                                Apply
+                              </a>
                             </div>
                           ))}
                         </div>

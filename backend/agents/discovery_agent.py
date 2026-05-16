@@ -83,6 +83,7 @@ Strategy:
 2. Additionally search the web for 2-3 more healthcare AI startups actively hiring engineers
 3. For each company, note open engineering roles and hiring signals
 4. Include every company from the seed list — even if you cannot confirm a specific open role, include it as "likely hiring" based on their stage and growth
+5. Each company must appear only ONCE. If a company has multiple open roles, list them all in the jobs array under that single entry — do not create separate entries per role
 
 Aim to return 5-6 companies total.
 
