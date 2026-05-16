@@ -253,6 +253,16 @@ The project sits at the intersection of:
 
 ---
 
+# Post-Hackathon Roadmap
+
+Planned improvements after the hackathon demo:
+
+* **Serper search** — replace DuckDuckGo scraping in `tools/search.py` with Serper API (2,500 free queries, then $1/1k). Fallback to DuckDuckGo if quota is exceeded. Single file change, no impact on agents.
+* **Remove seed list** — remove the hardcoded company list from the Discovery Agent system prompt so results are driven purely by web search, making Scout useful for any industry or role.
+* **SQLite application tracker** — add a lightweight `applications` table (`company`, `job_title`, `applied_at`, `status`, `notes`) so users can track which jobs they've applied to and move them through stages (applied → interviewing → rejected → offer).
+
+---
+
 # Long-Term Vision
 
 Scout starts with healthcare AI as the initial demo vertical but is designed to evolve into a generalized AI-powered career intelligence platform.

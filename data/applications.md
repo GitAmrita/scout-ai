@@ -16,3 +16,20 @@ I'm drawn to PathAI's mission of revolutionizing cancer diagnosis and drug devel
 - Mention your experience with PostgreSQL and cloud platforms, as these are key technologies used at PathAI.
 - In the interview, prepare to discuss your personal projects, particularly the Claims Processor project, showcasing your ability to design and build high-throughput data pipelines.
 
+
+## Abridge
+
+### Why This Company
+Abridge's mission to improve clinical documentation with AI aligns perfectly with my experience in healthcare data and AI-driven solutions. I'm particularly drawn to Abridge given my work at Stellar Health, and I'm excited by the opportunity to contribute to a product that directly enhances patient care through better technology.
+
+### Tailored Resume Bullets
+- Designed and architected ETL pipelines at Stellar Health to ingest and normalize diverse medical data from multiple payors, demonstrating strong data modeling and database design skills with relational databases like PostgreSQL.
+- Led the Total Cost of Care initiative at Stellar Health, delivering features that helped provider groups improve total cost of care by 7%, outperforming the market average of 5.3%.
+- Architected cross-functional Medicare & Medicaid projects at Stellar Health to improve compliance, performance metrics, and health outcomes, including a 3% increase in Medicare immunization compliance.
+- Built a high-throughput Python pipeline as a personal project to process healthcare insurance claims at scale, leveraging multiprocessing + async I/O to achieve 22K+ claims/sec throughput on 50K-row datasets
+
+### Application Tips
+- Highlight your experience with Python and ETL pipelines, especially in the context of healthcare data.
+- Mention your personal project, Claims Processor, to demonstrate your ability to build high-throughput data pipelines.
+- Refer to Abridge's stated values or recent news in your cover letter to show you've done your research and are genuinely interested in their mission.
+
