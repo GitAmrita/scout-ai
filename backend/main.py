@@ -1,4 +1,5 @@
 import json
+import os
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -14,9 +15,11 @@ from agents.application_agent import run_application_agent
 
 app = FastAPI()
 
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=allowed_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )

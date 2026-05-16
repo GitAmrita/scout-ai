@@ -2,22 +2,22 @@
 
 ## Viz.ai
 **Website**: https://www.viz.ai/
-**Funding**: Series D / $150M
+**Funding**: Series D / $171M
 
-Viz.ai is an AI-powered disease detection and care coordination platform.
+Viz.ai provides an AI-powered platform for stroke detection and care coordination.
 
 **Hiring Signals**:
-- AI-first company
+- FDA cleared AI
 - Expanding product line
 
 **Open Roles**:
-- [Software Engineer, Backend](https://www.viz.ai/careers)
+- [Senior Backend Engineer](https://www.viz.ai/careers)
 
 ## PathAI
 **Website**: https://www.pathai.com/
 **Funding**: Series C / $165M
 
-PathAI provides AI-powered pathology solutions to improve diagnostic accuracy and accelerate drug development.
+PathAI offers AI-powered pathology solutions to improve cancer diagnosis and research.
 
 **Hiring Signals**:
 - Partnerships with major pharma companies
@@ -28,52 +28,52 @@ PathAI provides AI-powered pathology solutions to improve diagnostic accuracy an
 
 ## Artera
 **Website**: https://artera.ai/
-**Funding**: Series C / $90M
+**Funding**: Series C / $75M
 
-Artera (formerly WELL Health) is a patient communications platform that uses AI to personalize interactions and improve outcomes.
+Artera (formerly Well Health) is a patient communication platform that uses AI to personalize patient interactions and streamline workflows.
 
 **Hiring Signals**:
-- Rapid growth in patient communication market
-- Expanding AI capabilities
+- Rapid growth in patient communication space
+- AI-driven personalization features
 
 **Open Roles**:
 - [Senior Backend Engineer](https://artera.ai/careers)
 
 ## Abridge
 **Website**: https://www.abridge.com/
-**Funding**: Series B / $60M
+**Funding**: Series B / $62.5M
 
-Abridge is an AI-powered platform that summarizes and structures doctor-patient conversations.
+Abridge is an AI-powered platform that summarizes doctor-patient conversations.
 
 **Hiring Signals**:
-- Strong focus on AI and machine learning
-- Expanding product offerings
+- Strong growth in clinical documentation market
+- AI-driven summarization and analysis
 
 **Open Roles**:
 - [Backend Engineer](https://www.abridge.com/careers)
 
 ## Ambience Healthcare
 **Website**: https://www.ambiencehealthcare.com/
-**Funding**: Series B / $70M
+**Funding**: Series A / $28.5M
 
-Ambience Healthcare develops an AI operating system for healthcare, automating clinical workflows and improving patient care.
+Ambience Healthcare develops AI-powered ambient documentation technology for healthcare.
 
 **Hiring Signals**:
-- Significant funding round
-- Focus on AI-driven automation
+- AI-powered documentation gaining traction
+- Partnerships with large healthcare systems
 
 **Open Roles**:
-- [Staff Backend Engineer](https://www.ambiencehealthcare.com/careers)
+- [Senior Backend Engineer](https://www.ambiencehealthcare.com/careers)
 
 ## Cohere Health
 **Website**: https://coherehealth.com/
-**Funding**: Series B / $50M
+**Funding**: Series B / $96M
 
-Cohere Health is a clinical intelligence company that aligns physicians and health plans to improve patient outcomes.
+Cohere Health is a clinical intelligence company that aligns provider behavior with payer policies.
 
 **Hiring Signals**:
-- Focus on clinical intelligence and AI
-- Partnerships with major health plans
+- Focus on payer-provider alignment
+- Growth in value-based care
 
 **Open Roles**:
-- [Software Engineer](https://coherehealth.com/careers)
+- [Senior Data Engineer](https://coherehealth.com/careers)

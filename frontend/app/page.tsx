@@ -81,7 +81,7 @@ export default function Home() {
     setCompanies([]);
 
     try {
-      const response = await fetch("http://localhost:8000/api/discover", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/discover`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt }),
@@ -144,7 +144,7 @@ export default function Home() {
       prev.map((c) => c.name === company.name ? { ...c, materialsLoading: true } : c)
     );
     try {
-      const response = await fetch("http://localhost:8000/api/apply", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/apply`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ company, analysis: company.analysis }),
