@@ -24,3 +24,18 @@ class DiscoverRequest(BaseModel):
 class ApplyRequest(BaseModel):
     company: dict
     analysis: dict
+
+
+class AutoApplyAnalyzeRequest(BaseModel):
+    job_url: str
+    job_title: str = ""
+    company_name: str = ""
+
+
+class AutoApplyFillRequest(BaseModel):
+    session_id: str
+    fields: list[dict]
+
+
+class AutoApplySubmitRequest(BaseModel):
+    session_id: str

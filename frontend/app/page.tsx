@@ -35,6 +35,30 @@ interface ApplicationMaterials {
   application_tips: string[];
 }
 
+interface AutoApplyField {
+  label: string;
+  type: string;
+  value: string;
+  confidence: "high" | "medium" | "low";
+  skip: boolean;
+}
+
+type AutoFillStatus = "idle" | "analyzing" | "awaiting_confirmation" | "filling" | "filled" | "submitting" | "submitted" | "error";
+
+interface AutoFillState {
+  status: AutoFillStatus;
+  screenshot?: string;
+  fields?: AutoApplyField[];
+  formUrl?: string;
+  notes?: string;
+  hasResumeUpload?: boolean;
+  filledScreenshot?: string;
+  confirmScreenshot?: string;
+  skipped?: string[];
+  sessionId?: string;
+  error?: string;
+}
+
 interface CompanyWithAnalysis extends Company {
   analysis?: Analysis;
   materials?: ApplicationMaterials;
@@ -70,6 +94,9 @@ export default function Home() {
   const [events, setEvents] = useState<AgentEvent[]>([]);
   const [companies, setCompanies] = useState<CompanyWithAnalysis[]>([]);
   const [hasRun, setHasRun] = useState(false);
+  const [resumeUploaded, setResumeUploaded] = useState(false);
+  const [autoFillUrl, setAutoFillUrl] = useState("");
+  const [autoFill, setAutoFill] = useState<AutoFillState>({ status: "idle" });
   const feedRef = useRef<HTMLDivElement>(null);
 
   const startDiscovery = async () => {
@@ -179,6 +206,138 @@ export default function Home() {
       setCompanies((prev) =>
         prev.map((c) => c.name === company.name ? { ...c, materialsLoading: false } : c)
       );
+    }
+  };
+
+  const uploadResume = async (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/upload-resume`, {
+      method: "POST",
+      body: formData,
+    });
+    setResumeUploaded(true);
+  };
+
+  const analyzeForm = async () => {
+    if (!autoFillUrl.trim()) return;
+    setAutoFill({ status: "analyzing" });
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auto-apply/analyze`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ job_url: autoFillUrl.trim() }),
+      });
+      if (!response.body) return;
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const event = JSON.parse(line.slice(6));
+            if (event.type === "auto_apply_analyzed") {
+              setAutoFill({
+                status: "awaiting_confirmation",
+                screenshot: event.screenshot,
+                fields: event.fields,
+                formUrl: event.form_url,
+                notes: event.notes,
+                hasResumeUpload: event.has_resume_upload,
+                sessionId: event.session_id,
+              });
+            }
+          } catch {}
+        }
+      }
+    } catch {
+      setAutoFill({ status: "error", error: "Failed to analyze form." });
+    }
+  };
+
+  const fillForm = async () => {
+    if (!autoFill.sessionId || !autoFill.fields) return;
+    setAutoFill((prev) => ({ ...prev, status: "filling" }));
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auto-apply/fill`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: autoFill.sessionId, fields: autoFill.fields }),
+      });
+      if (!response.body) return;
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const event = JSON.parse(line.slice(6));
+            if (event.type === "auto_apply_filled") {
+              setAutoFill((prev) => ({
+                ...prev,
+                status: "filled",
+                filledScreenshot: event.screenshot,
+                skipped: event.skipped,
+                sessionId: event.session_id,
+              }));
+            }
+            if (event.type === "auto_apply_error") {
+              setAutoFill((prev) => ({ ...prev, status: "error", error: event.message }));
+            }
+          } catch {}
+        }
+      }
+    } catch {
+      setAutoFill((prev) => ({ ...prev, status: "error", error: "Failed to fill form." }));
+    }
+  };
+
+  const submitForm = async () => {
+    if (!autoFill.sessionId) return;
+    setAutoFill((prev) => ({ ...prev, status: "submitting" }));
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auto-apply/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: autoFill.sessionId }),
+      });
+      if (!response.body) return;
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const event = JSON.parse(line.slice(6));
+            if (event.type === "auto_apply_submitted") {
+              setAutoFill((prev) => ({ ...prev, status: "submitted", confirmScreenshot: event.screenshot }));
+            }
+            if (event.type === "auto_apply_error") {
+              setAutoFill((prev) => ({ ...prev, status: "error", error: event.message }));
+            }
+          } catch {}
+        }
+      }
+    } catch {
+      setAutoFill((prev) => ({ ...prev, status: "error", error: "Failed to submit." }));
     }
   };
 
@@ -425,7 +584,7 @@ export default function Home() {
                                 rel="noopener noreferrer"
                                 className="text-xs text-zinc-500 hover:text-emerald-400 transition-colors"
                               >
-                                Apply
+                                View
                               </a>
                             </div>
                           ))}
@@ -519,6 +678,198 @@ export default function Home() {
           </div>
         )}
       </main>
+
+      {/* Auto Fill Bar */}
+      <div className="sticky bottom-0 border-t border-zinc-800 bg-zinc-950/95 backdrop-blur px-8 py-4">
+        <div className="max-w-6xl mx-auto flex flex-col gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex-1 flex items-center gap-2 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2.5 focus-within:border-emerald-500 transition-colors">
+              <span className="text-xs text-zinc-500 whitespace-nowrap">Auto Fill →</span>
+              <input
+                type="text"
+                value={autoFillUrl}
+                onChange={(e) => setAutoFillUrl(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && analyzeForm()}
+                placeholder="Paste job application URL here"
+                className="flex-1 bg-transparent text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none"
+              />
+            </div>
+            {!resumeUploaded ? (
+              <label className="text-xs px-3 py-2.5 rounded-lg border border-zinc-700 text-zinc-400 cursor-pointer hover:border-zinc-500 transition-colors whitespace-nowrap">
+                Upload Resume PDF
+                <input type="file" accept=".pdf" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadResume(f); }} />
+              </label>
+            ) : (
+              <span className="text-xs text-emerald-400 whitespace-nowrap">Resume ready ✓</span>
+            )}
+            <button
+              onClick={analyzeForm}
+              disabled={!autoFillUrl.trim() || autoFill.status === "analyzing" || autoFill.status === "submitting"}
+              className="px-4 py-2.5 rounded-lg bg-emerald-500 text-zinc-950 font-medium text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-emerald-400 transition-colors whitespace-nowrap"
+            >
+              {autoFill.status === "analyzing" ? "Analyzing..." : "Analyze Form"}
+            </button>
+          </div>
+
+          {/* Auto Fill Panel */}
+          <AnimatePresence>
+            {autoFill.status !== "idle" && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="rounded-lg border border-zinc-700 bg-zinc-900 p-4 flex flex-col gap-3 overflow-hidden"
+              >
+                {autoFill.status === "analyzing" && (
+                  <div className="flex items-center gap-2 text-xs text-zinc-400">
+                    <div className="flex gap-1">
+                      {[0,1,2].map((k) => (
+                        <motion.div key={k} className="w-1 h-1 rounded-full bg-emerald-500"
+                          animate={{ opacity: [0.3,1,0.3] }}
+                          transition={{ duration: 1.2, repeat: Infinity, delay: k * 0.2 }}
+                        />
+                      ))}
+                    </div>
+                    Analyzing application form...
+                  </div>
+                )}
+
+                {/* Step 1: Field plan preview */}
+                {autoFill.status === "awaiting_confirmation" && autoFill.fields && (
+                  <div className="flex gap-4">
+                    {autoFill.screenshot && (
+                      <img
+                        src={`data:image/png;base64,${autoFill.screenshot}`}
+                        alt="Form preview"
+                        className="rounded border border-zinc-700 w-48 flex-shrink-0 object-top object-cover self-start"
+                      />
+                    )}
+                    <div className="flex flex-col gap-3 flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">Fields to fill</p>
+                      <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+                        {autoFill.fields.filter(f => !f.skip && f.value).map((field, k) => (
+                          <div key={k} className="flex items-start justify-between gap-2 text-xs">
+                            <span className={`flex-shrink-0 ${field.confidence === "high" ? "text-emerald-400" : field.confidence === "medium" ? "text-amber-400" : "text-zinc-500"}`}>
+                              {field.label}
+                            </span>
+                            <span className="text-zinc-400 truncate max-w-36">{field.type === "file" ? "resume.pdf" : field.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                      {autoFill.notes && <p className="text-xs text-zinc-500 italic">{autoFill.notes}</p>}
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={fillForm}
+                          className="text-xs px-3 py-1.5 rounded-lg bg-emerald-500 text-zinc-950 font-medium hover:bg-emerald-400 transition-colors"
+                        >
+                          Fill Form
+                        </button>
+                        <button
+                          onClick={() => setAutoFill({ status: "idle" })}
+                          className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 2: Filled form review */}
+                {(autoFill.status === "filled" || autoFill.status === "submitting") && autoFill.filledScreenshot && (
+                  <div className="flex flex-col gap-3">
+                    <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">Review filled form</p>
+                    <div className="overflow-y-auto max-h-96 rounded border border-zinc-700">
+                      <img
+                        src={`data:image/png;base64,${autoFill.filledScreenshot}`}
+                        alt="Filled form"
+                        className="w-full"
+                      />
+                    </div>
+                    {autoFill.skipped && autoFill.skipped.length > 0 && (
+                      <p className="text-xs text-amber-400">
+                        Could not auto-fill: {autoFill.skipped.join(", ")} — fill these manually in the browser window before submitting.
+                      </p>
+                    )}
+                    <p className="text-xs text-zinc-500">The browser window is still open — make any edits, then click Submit.</p>
+                    <div className="flex items-center gap-3">
+                      {autoFill.status === "filled" && (
+                        <>
+                          <button
+                            onClick={submitForm}
+                            className="text-xs px-3 py-1.5 rounded-lg bg-emerald-500 text-zinc-950 font-medium hover:bg-emerald-400 transition-colors"
+                          >
+                            Submit Application
+                          </button>
+                          <button
+                            onClick={() => setAutoFill({ status: "idle" })}
+                            className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      )}
+                      {autoFill.status === "submitting" && (
+                        <div className="flex items-center gap-2 text-xs text-zinc-400">
+                          <div className="flex gap-1">
+                            {[0,1,2].map((k) => (
+                              <motion.div key={k} className="w-1 h-1 rounded-full bg-emerald-500"
+                                animate={{ opacity: [0.3,1,0.3] }}
+                                transition={{ duration: 1.2, repeat: Infinity, delay: k * 0.2 }}
+                              />
+                            ))}
+                          </div>
+                          Submitting...
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {autoFill.status === "filling" && (
+                  <div className="flex items-center gap-2 text-xs text-zinc-400">
+                    <div className="flex gap-1">
+                      {[0,1,2].map((k) => (
+                        <motion.div key={k} className="w-1 h-1 rounded-full bg-emerald-500"
+                          animate={{ opacity: [0.3,1,0.3] }}
+                          transition={{ duration: 1.2, repeat: Infinity, delay: k * 0.2 }}
+                        />
+                      ))}
+                    </div>
+                    Filling form...
+                  </div>
+                )}
+
+                {autoFill.status === "submitted" && (
+                  <div className="flex items-center gap-4">
+                    <p className="text-sm text-emerald-400 font-medium">Application submitted!</p>
+                    {autoFill.confirmScreenshot && (
+                      <img
+                        src={`data:image/png;base64,${autoFill.confirmScreenshot}`}
+                        alt="Confirmation"
+                        className="rounded border border-zinc-700 h-20 object-top object-cover"
+                      />
+                    )}
+                    <button
+                      onClick={() => { setAutoFill({ status: "idle" }); setAutoFillUrl(""); }}
+                      className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors ml-auto"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                )}
+
+                {autoFill.status === "error" && (
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-red-400">{autoFill.error}</p>
+                    <button onClick={() => setAutoFill({ status: "idle" })} className="text-xs text-zinc-500 hover:text-zinc-300">Dismiss</button>
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
     </div>
   );
 }
